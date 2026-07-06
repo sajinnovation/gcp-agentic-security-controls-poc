@@ -1,0 +1,6 @@
+google-adk>=1.19.0
+google-cloud-modelarmor>=0.2.0
+google-cloud-dlp>=3.0.0
+google-cloud-aiplatform[adk,agent_engines]>=1.95.0
+google-cloud-bigquery>=3.0.0
+python-dotenv>=1.0.0
