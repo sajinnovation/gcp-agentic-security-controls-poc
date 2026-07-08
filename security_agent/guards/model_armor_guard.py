@@ -30,18 +30,28 @@ class ModelArmorGuard:
         self.template_name = template_name
         self.location = location
         self.block_on_match = block_on_match
-
-        from google.api_core.client_options import ClientOptions
-        from google.cloud import modelarmor_v1
-
-        self._modelarmor_v1 = modelarmor_v1
-        self.client = modelarmor_v1.ModelArmorClient(
-            transport="rest",
-            client_options=ClientOptions(
-                api_endpoint=f"modelarmor.{location}.rep.googleapis.com"
-            ),
-        )
+        self._client = None
         print(f"[ModelArmorGuard] Initialized with template: {template_name}")
+
+    def __getstate__(self) -> dict:
+        """Exclude non-picklable client for Agent Engine serialization."""
+        state = self.__dict__.copy()
+        state["_client"] = None
+        return state
+
+    @property
+    def client(self):
+        if self._client is None:
+            from google.api_core.client_options import ClientOptions
+            from google.cloud import modelarmor_v1
+
+            self._client = modelarmor_v1.ModelArmorClient(
+                transport="rest",
+                client_options=ClientOptions(
+                    api_endpoint=f"modelarmor.{self.location}.rep.googleapis.com"
+                ),
+            )
+        return self._client
 
     def _get_matched_filters(self, result) -> list[str]:
         matched_filters: list[str] = []
@@ -165,10 +175,11 @@ class ModelArmorGuard:
         print(f"[ModelArmorGuard] Screening user prompt: '{user_text[:80]}...'")
 
         try:
-            ma = self._modelarmor_v1
-            sanitize_request = ma.SanitizeUserPromptRequest(
+            from google.cloud import modelarmor_v1
+
+            sanitize_request = modelarmor_v1.SanitizeUserPromptRequest(
                 name=self.template_name,
-                user_prompt_data=ma.DataItem(text=user_text),
+                user_prompt_data=modelarmor_v1.DataItem(text=user_text),
             )
             result = self.client.sanitize_user_prompt(request=sanitize_request)
             matched_filters = self._get_matched_filters(result)
@@ -201,10 +212,11 @@ class ModelArmorGuard:
         print(f"[ModelArmorGuard] Screening model response: '{model_text[:80]}...'")
 
         try:
-            ma = self._modelarmor_v1
-            sanitize_request = ma.SanitizeModelResponseRequest(
+            from google.cloud import modelarmor_v1
+
+            sanitize_request = modelarmor_v1.SanitizeModelResponseRequest(
                 name=self.template_name,
-                model_response_data=ma.DataItem(text=model_text),
+                model_response_data=modelarmor_v1.DataItem(text=model_text),
             )
             result = self.client.sanitize_model_response(request=sanitize_request)
             matched_filters = self._get_matched_filters(result)

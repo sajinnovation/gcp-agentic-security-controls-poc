@@ -26,20 +26,37 @@ def create_template(
     parent = f"projects/{project_id}/locations/{location}"
     template_name = f"{parent}/templates/{template_id}"
 
+    confidence = modelarmor_v1.DetectionConfidenceLevel.MEDIUM_AND_ABOVE
     template = modelarmor_v1.Template(
         filter_config=modelarmor_v1.FilterConfig(
             pi_and_jailbreak_filter_settings=modelarmor_v1.PiAndJailbreakFilterSettings(
-                filter_enforcement=modelarmor_v1.PiAndJailbreakFilterSettings.PiAndJailbreakFilterEnforcement.ENABLED
+                filter_enforcement=modelarmor_v1.PiAndJailbreakFilterSettings.PiAndJailbreakFilterEnforcement.ENABLED,
+                confidence_level=confidence,
             ),
-            sdp_filter_settings=modelarmor_v1.SdpFilterSettings(
+            sdp_settings=modelarmor_v1.SdpFilterSettings(
                 basic_config=modelarmor_v1.SdpBasicConfig(
                     filter_enforcement=modelarmor_v1.SdpBasicConfig.SdpBasicConfigEnforcement.ENABLED
                 )
             ),
-            rai_filter_settings=modelarmor_v1.RaiFilterSettings(
-                rai_settings=modelarmor_v1.RaiSettings(
-                    filter_enforcement=modelarmor_v1.RaiSettings.RaiFilterEnforcement.ENABLED
-                )
+            rai_settings=modelarmor_v1.RaiFilterSettings(
+                rai_filters=[
+                    modelarmor_v1.RaiFilterSettings.RaiFilter(
+                        filter_type=modelarmor_v1.RaiFilterType.HATE_SPEECH,
+                        confidence_level=confidence,
+                    ),
+                    modelarmor_v1.RaiFilterSettings.RaiFilter(
+                        filter_type=modelarmor_v1.RaiFilterType.HARASSMENT,
+                        confidence_level=confidence,
+                    ),
+                    modelarmor_v1.RaiFilterSettings.RaiFilter(
+                        filter_type=modelarmor_v1.RaiFilterType.SEXUALLY_EXPLICIT,
+                        confidence_level=confidence,
+                    ),
+                    modelarmor_v1.RaiFilterSettings.RaiFilter(
+                        filter_type=modelarmor_v1.RaiFilterType.DANGEROUS,
+                        confidence_level=confidence,
+                    ),
+                ]
             ),
             malicious_uri_filter_settings=modelarmor_v1.MaliciousUriFilterSettings(
                 filter_enforcement=modelarmor_v1.MaliciousUriFilterSettings.MaliciousUriFilterEnforcement.ENABLED
@@ -48,12 +65,11 @@ def create_template(
     )
 
     try:
-        operation = client.create_template(
+        result = client.create_template(
             parent=parent,
             template_id=template_id,
             template=template,
         )
-        result = operation.result(timeout=120)
         return result.name
     except Exception as exc:
         if "already exists" in str(exc).lower():
